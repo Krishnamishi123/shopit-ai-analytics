@@ -1,0 +1,38 @@
+
+[
+  {
+    "id": "Q01",
+    "question": "Which products generated the highest revenue?",
+    "expected_category": "DATABASE",
+    "must_contain": [],
+    "description": "Product revenue ranking"
+  },
+  {
+    "id": "Q02",
+    "question": "Who are the top-spending customers?",
+    "expected_category": "DATABASE",
+    "must_contain": [],
+    "description": "Customer spending analysis"
+  },
+  {
+    "id": "Q03",
+    "question": "What is Shopit's return policy?",
+    "expected_category": "RAG",
+    "must_contain": [],
+    "description": "Return policy retrieval"
+  },
+  {
+    "id": "Q04",
+    "question": "What is Shopit's privacy policy?",
+    "expected_category": "RAG",
+    "must_contain": [],
+    "description": "Privacy policy retrieval"
+  },
+  {
+    "id": "Q05",
+    "question": "What is the capital of France?",
+    "expected_category": "UNKNOWN",
+    "must_contain": [],
+    "description": "Unsupported general-knowledge question"
+  }
+]

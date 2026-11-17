@@ -1,0 +1,9 @@
+test_name,status,details,tested_at
+Valid SELECT allowed,PASS,SELECT 1 AS test_value,2026-10-28T01:21:54
+Valid read-only CTE allowed,PASS,WITH sample AS (SELECT 1 AS value) SELECT value FROM sample,2026-10-28T01:21:54
+DELETE rejected,PASS,Only SELECT queries are allowed.,2026-10-28T01:21:54
+DROP rejected,PASS,Only SELECT queries are allowed.,2026-10-28T01:21:54
+UPDATE rejected,PASS,Only SELECT queries are allowed.,2026-10-28T01:21:54
+Multiple statements rejected,PASS,Multiple SQL statements are not allowed.,2026-10-28T01:21:54
+Empty SQL rejected,PASS,SQL query is empty.,2026-10-28T01:21:54
+Database health check,PASS,Health check returned 1,2026-10-28T01:21:54

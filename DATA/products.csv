@@ -1,0 +1,11 @@
+product_id,product_name,category,mrp,selling_price
+101,ShopIt AirPods Pro,Electronics,8999,6999
+102,ShopIt Smartwatch X2,Electronics,5999,4499
+103,ShopIt Wireless Keyboard,Electronics,2499,1899
+104,ShopIt Running Shoes,Fashion,3999,2999
+105,ShopIt Cotton Hoodie,Fashion,2299,1699
+106,ShopIt Backpack 25L,Bags,1999,1499
+107,ShopIt Coffee Maker,Home & Kitchen,4999,3799
+108,ShopIt Air Fryer 4L,Home & Kitchen,6999,5299
+109,ShopIt LED Study Lamp,Home & Kitchen,1599,1199
+110,ShopIt Power Bank 20000mAh,Electronics,2199,1599

@@ -1,0 +1,27 @@
+test_id,question,expected_category,actual_category,category_pass,answer_pass,keyword_pass,data_pass,missing_terms,passed,answer
+Q01,Which products generated the highest revenue?,DATABASE,DATABASE,True,True,True,True,,True,"ShopIt AirPods Pro generated the highest revenue at $4,753,370.85, followed by ShopIt Smartwatch X2 ($2,230,154.30) and ShopIt Running Shoes ($2,120,742.85)."
+Q02,Who are the top-spending customers?,DATABASE,DATABASE,True,True,True,True,,True,"The top-spending customer is Customer_10293 with $87,212.70 in total spend, followed by Customer_10387 with $81,779.40 and Customer_10271 with $81,660.25."
+Q03,What is Shopit's return policy?,RAG,RAG,True,True,True,True,,True,"Based on the Shopit policy context, here is a summary of Shopit's Return & Refund Policy:
+
+* **Return Period:** Eligible products can generally be returned within **7 days of delivery**, unless a different return period is specified on the product page.
+* **Return Conditions:** Items must be unused, in original condition, and include all original packaging, tags, accessories, manuals, and invoices. They must not show damage caused by the customer.
+* **Non-Returnable Items:** Categories that generally cannot be returned include:
+  * Personal hygiene products
+  * Opened cosmetics and beauty products
+  * Innerwear and intimate apparel
+  * Perishable food products
+  * Customized or personalized items
+  * Gift cards
+  * Products marked as non-returnable on their product page
+* **Damaged or Incorrect Items:** Must be reported through the ShopIt website or app as soon as possible. Customers may need to provide photos or videos of the issue.
+* **Return Shipping:** Free return pickup is provided for defective, damaged, or incorrect products. Return shipping charges may apply for certain customer-initiated returns.
+* **Refunds & Replacements:** Refunds are processed after the returned item passes inspection at the facility. Replacements may be offered if available; otherwise, a refund is issued. Refunds can be rejected if items are damaged by misuse, missing accessories, modified, or returned late."
+Q04,What is Shopit's privacy policy?,RAG,RAG,True,True,True,True,,True,"Based on the provided document, **ShopIt's Privacy Policy** (Effective Date: January 1, 2026) outlines how the company collects, uses, shares, and protects customer data:
+
+* **Information Collected:** Account details (name, email, mobile number, credentials), delivery/billing addresses, transaction history, and device/usage data (IP address, browser type, pages viewed). ShopIt does not generally store complete payment card numbers.
+* **How Information is Used:** To improve services, detect fraud/unauthorized activity, send transactional notifications, and provide personalized recommendations.
+* **Data Sharing:** Information is shared only as necessary with service providers, including delivery partners, payment processors, customer support, hosting providers, and fraud prevention services.
+* **Marketing & Cookies:** Customers can opt out of promotional communications and manage cookies via browser settings. Transactional notifications (such as order confirmations) will still be sent.
+* **Data Security & Retention:** ShopIt uses reasonable technical and organizational security measures and retains data for as long as necessary for business, legal, and operational purposes.
+* **Privacy Requests:** Customers can submit requests regarding their personal data through the Privacy or Customer Support section."
+Q05,What is the capital of France?,UNKNOWN,UNKNOWN,True,True,True,True,,True,I can currently answer questions related to Shopit's business data and company policies.

@@ -1,0 +1,14 @@
+streamlit
+fastapi
+uvicorn
+pandas
+matplotlib
+requests
+python-dotenv
+langgraph
+langchain
+langchain-google-genai
+langchain-community
+faiss-cpu
+sqlalchemy
+pypdf
