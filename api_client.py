@@ -1,8 +1,14 @@
 
+import os
 import requests
 import pandas as pd
 
-API_URL = "http://127.0.0.1:8000"
+# Read the FastAPI URL from environment variables.
+# Localhost is used automatically when running locally.
+API_URL = os.getenv(
+    "API_BASE_URL",
+    "http://127.0.0.1:8000"
+).rstrip("/")
 
 
 def ask_shopit_api(question: str) -> dict:
@@ -12,12 +18,12 @@ def ask_shopit_api(question: str) -> dict:
             json={"question": question},
             timeout=180,
         )
+
     except requests.RequestException as exc:
         raise RuntimeError(
-            f"Cannot reach FastAPI: {exc}"
+            f"Cannot reach FastAPI at {API_URL}: {exc}"
         ) from exc
 
-    # Show the actual error returned by FastAPI.
     if not response.ok:
         print("FastAPI status:", response.status_code)
         print("FastAPI response:", response.text)
@@ -30,6 +36,7 @@ def ask_shopit_api(question: str) -> dict:
     result = response.json()
 
     records = result.get("data")
+
     if records is not None:
         result["data"] = pd.DataFrame(records)
 
