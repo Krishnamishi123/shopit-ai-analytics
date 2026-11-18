@@ -11,7 +11,17 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from monitoring import get_monitoring_summary
 from monitoring import run_shopit_query
+import logging
+import sys
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True
+)
+
+logger = logging.getLogger("shopit")
 # --------------------------------------------------
 # PATHS AND LOGGING
 # --------------------------------------------------
