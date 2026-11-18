@@ -242,9 +242,21 @@ def chat(request: ChatRequest):
 # --------------------------------------------------
 
 @app.post("/chat/analytics", response_model=ChatResponse)
-def chat_analytics(request: ChatRequest):
-    """
-    Returns the same assistant result, including SQL,
-    insights, data records, and chart metadata when available.
-    """
-    return process_chat(request.question)
+
+@app.post("/chat/analytics")
+async def chat_analytics(request: ChatRequest):
+
+    try:
+        result = app.invoke({
+            "question": request.question
+        })
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Shopit could not process this question. Check the application logs and try again."
+        )
+
+
