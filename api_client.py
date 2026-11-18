@@ -3,15 +3,18 @@ import os
 import requests
 import pandas as pd
 
-# Read the FastAPI URL from environment variables.
-# Localhost is used automatically when running locally.
+# Use Render backend by default.
+# You can override this using API_BASE_URL.
 API_URL = os.getenv(
     "API_BASE_URL",
-    "http://127.0.0.1:8000"
+    "https://shopit-ai-analytics.onrender.com"
 ).rstrip("/")
+
+print("SHOPIT BACKEND URL:", API_URL)
 
 
 def ask_shopit_api(question: str) -> dict:
+
     try:
         response = requests.post(
             f"{API_URL}/chat/analytics",
@@ -25,9 +28,6 @@ def ask_shopit_api(question: str) -> dict:
         ) from exc
 
     if not response.ok:
-        print("FastAPI status:", response.status_code)
-        print("FastAPI response:", response.text)
-
         raise RuntimeError(
             f"FastAPI returned HTTP {response.status_code}: "
             f"{response.text}"
