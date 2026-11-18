@@ -254,6 +254,8 @@ async def chat_analytics(request: ChatRequest):
         return result
 
     except Exception as e:
+        logger.exception("SHOPIT ANALYTICS FAILED")
+
         raise HTTPException(
             status_code=500,
             detail="Shopit could not process this question. Check the application logs and try again."
