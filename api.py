@@ -13,7 +13,7 @@ from monitoring import get_monitoring_summary
 from monitoring import run_shopit_query
 import logging
 import sys
-
+import traceback
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -254,6 +254,11 @@ async def chat_analytics(request: ChatRequest):
         return result
 
     except Exception as e:
+        print("========== SHOPIT ERROR START ==========", flush=True)
+
+        traceback.print_exc(file=sys.stdout)
+
+        print("========== SHOPIT ERROR END ==========", flush=True)
         logger.exception("SHOPIT ANALYTICS FAILED")
 
         raise HTTPException(
