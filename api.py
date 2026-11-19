@@ -242,28 +242,6 @@ def chat(request: ChatRequest):
 # --------------------------------------------------
 
 @app.post("/chat/analytics", response_model=ChatResponse)
+def chat_analytics(request: ChatRequest):
 
-@app.post("/chat/analytics")
-async def chat_analytics(request: ChatRequest):
-
-    try:
-        result = app.invoke({
-            "question": request.question
-        })
-
-        return result
-
-    except Exception as e:
-        print("========== SHOPIT ERROR START ==========", flush=True)
-
-        traceback.print_exc(file=sys.stdout)
-
-        print("========== SHOPIT ERROR END ==========", flush=True)
-        logger.exception("SHOPIT ANALYTICS FAILED")
-
-        raise HTTPException(
-            status_code=500,
-            detail="Shopit could not process this question. Check the application logs and try again."
-        )
-
-
+    return process_chat(request.question)
