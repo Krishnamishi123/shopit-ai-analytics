@@ -26,6 +26,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 CSV_LOCK = Lock()
 
 
+
 # ==================================================
 # 2. LOGGING CONFIGURATION
 # ==================================================
@@ -36,19 +37,27 @@ logger.propagate = False
 
 if not logger.handlers:
 
-    handler = RotatingFileHandler(
+    # Save logs to file
+    file_handler = RotatingFileHandler(
         LOG_PATH,
         maxBytes=1_000_000,
         backupCount=3,
         encoding="utf-8",
     )
 
+    # Print logs to Render console
+    console_handler = logging.StreamHandler()
+
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s"
     )
 
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
 
 
 # ==================================================

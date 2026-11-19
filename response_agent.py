@@ -1,22 +1,31 @@
 
 import json
 import logging
+import re
 
 import pandas as pd
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 logger = logging.getLogger("shopit")
 
+
+# ==================================================
+# 1. GEMINI CONFIGURATION
+# ==================================================
+
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.5-flash"
 )
 
 
+# ==================================================
+# 2. DEFAULT RESPONSE
+# ==================================================
+
 def _default_response(
     answer: str,
     insights: list | None = None
 ) -> dict:
-    """Return every field expected by graph.py and Streamlit."""
 
     return {
         "answer": answer,
@@ -29,28 +38,125 @@ def _default_response(
     }
 
 
+# ==================================================
+# 3. EXTRACT TEXT FROM GEMINI RESPONSE
+# ==================================================
+
 def _extract_text(content) -> str:
-    """Handle Gemini responses returned as text or content blocks."""
 
     if isinstance(content, str):
         return content.strip()
 
+    if isinstance(content, dict):
+        return str(content.get("text", "")).strip()
+
     if isinstance(content, list):
+
         parts = []
 
         for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.append(block.get("text", ""))
 
-        return "".join(parts).strip()
+            if isinstance(block, str):
+                parts.append(block)
+
+            elif isinstance(block, dict):
+                parts.append(
+                    str(block.get("text", ""))
+                )
+
+            elif hasattr(block, "text"):
+                parts.append(str(block.text))
+
+        return "\n".join(parts).strip()
+
+    if hasattr(content, "text"):
+        return str(content.text).strip()
 
     return str(content).strip()
 
 
-def analyze_data(question: str, df: pd.DataFrame | None) -> dict:
-    """Turn SQL results into a business answer and optional chart instructions."""
+# ==================================================
+# 4. EXTRACT JSON FROM GEMINI OUTPUT
+# ==================================================
 
-    # Step 1: Handle missing or empty query results
+def _parse_json_response(text: str) -> dict:
+
+    if not text:
+        raise ValueError("Gemini returned an empty response.")
+
+    # Remove Markdown code fences if present
+    text = re.sub(
+        r"^```(?:json)?\s*",
+        "",
+        text.strip(),
+        flags=re.IGNORECASE
+    )
+
+    text = re.sub(
+        r"\s*```$",
+        "",
+        text.strip()
+    )
+
+    # Find the beginning of the JSON object
+    start = text.find("{")
+
+    if start == -1:
+        raise ValueError(
+            f"No JSON object found in Gemini response: {text[:500]}"
+        )
+
+    # Decode the first valid JSON object
+    decoder = json.JSONDecoder()
+
+    result, _ = decoder.raw_decode(text[start:])
+
+    if not isinstance(result, dict):
+        raise ValueError("Gemini response is not a JSON object.")
+
+    return result
+
+
+# ==================================================
+# 5. FALLBACK ANSWER FROM SQL DATA
+# ==================================================
+
+def _fallback_from_dataframe(df: pd.DataFrame) -> str:
+
+    if df is None or df.empty:
+        return "No matching data was found."
+
+    # Handle single-value results such as COUNT(*)
+    if len(df) == 1 and len(df.columns) == 1:
+
+        column = str(df.columns[0])
+        value = df.iloc[0, 0]
+
+        return (
+            f"The query result is {value} "
+            f"for the column '{column}'."
+        )
+
+    # Handle normal table results
+    preview = df.head(5).to_dict(orient="records")
+
+    return (
+        f"The query returned {len(df)} rows "
+        f"and {len(df.columns)} columns. "
+        f"Here are the first results: {preview}"
+    )
+
+
+# ==================================================
+# 6. MAIN DATA ANALYSIS FUNCTION
+# ==================================================
+
+def analyze_data(
+    question: str,
+    df: pd.DataFrame | None
+) -> dict:
+
+    # Handle missing results
     if df is None:
         return _default_response(
             "The database query could not be completed. Please try again."
@@ -61,13 +167,13 @@ def analyze_data(question: str, df: pd.DataFrame | None) -> dict:
             "No matching data was found for this question."
         )
 
-    # Step 2: Prepare the result for Gemini
+    columns = list(df.columns)
+
+    # Prepare SQL results for Gemini
     data_text = df.head(100).to_string(index=False)
 
     if len(data_text) > 12000:
         data_text = data_text[:12000]
-
-    columns = list(df.columns)
 
     prompt = f"""
 You are Shopit's business analytics assistant.
@@ -81,72 +187,88 @@ SQL RESULT:
 ACTUAL RESULT COLUMN NAMES:
 {json.dumps(columns)}
 
-Rules:
-- Answer the question directly.
-- Use only facts and numbers present in the SQL result.
-- Never invent numbers or claim unsupported facts.
-- Give up to 4 concise insights when meaningful.
-- Do not repeat every row unnecessarily.
-- Request a chart only if it would help explain multiple rows.
-- Use "bar" for rankings and category/product/customer comparisons.
-- Use "line" for time trends, "pie" for a small part-to-whole breakdown,
-  and "scatter" for two meaningful numeric variables.
-- x_column and y_column must exactly match actual column names.
-- Use a numeric y_column for bar, line, and scatter charts.
-- Do not invent or rename columns.
-- If no suitable chart is needed, set visualization_required to false
-  and set chart_type, x_column, y_column, chart_title to null.
-- Return valid JSON only, with no Markdown fences.
+INSTRUCTIONS:
 
-Return exactly these keys:
+1. Answer the user's question directly.
+2. Use only facts and numbers from the SQL result.
+3. Never invent information.
+4. Provide up to 4 useful business insights.
+5. Do not repeat every row unnecessarily.
+6. Request a chart only when it adds value.
+7. Use bar for rankings and comparisons.
+8. Use line for time trends.
+9. Use pie for small part-to-whole breakdowns.
+10. Use scatter for meaningful numeric relationships.
+11. Column names must exactly match the actual SQL result columns.
+12. The y_column must be numeric.
+13. If no chart is needed, set visualization_required to false
+    and all chart fields to null.
+
+Return ONLY valid JSON.
+Do not add Markdown fences or explanations.
+
+Use exactly this structure:
+
 {{
-  "answer": "string",
-  "insights": ["string"],
-  "visualization_required": false,
-  "chart_type": null,
-  "x_column": null,
-  "y_column": null,
-  "chart_title": null
+    "answer": "Your direct answer",
+    "insights": [],
+    "visualization_required": false,
+    "chart_type": null,
+    "x_column": null,
+    "y_column": null,
+    "chart_title": null
 }}
 """
 
-    # Step 3: Ask Gemini to analyze the data
+    # ==================================================
+    # 7. CALL GEMINI
+    # ==================================================
+
     try:
-        response = llm.invoke(prompt)
-        text = _extract_text(response.content)
 
-        # Remove optional Markdown fences
-        if text.startswith("```"):
-            lines = text.splitlines()
-
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-
-            text = "\n".join(lines).strip()
-
-        result = json.loads(text)
-
-        if not isinstance(result, dict):
-            raise ValueError("Gemini response was not a JSON object.")
-
-    except Exception:
-        logger.exception("Response analysis failed; using fallback response")
-
-        # Basic fallback based on actual database output
-        return _default_response(
-            f"The query returned {len(df)} rows and "
-            f"{len(columns)} columns. I couldn't generate a full "
-            "business summary right now. Please try again."
+        logger.info(
+            "Starting Gemini analysis | question=%s",
+            question[:200]
         )
 
-    # Step 4: Normalize the response fields
+        response = llm.invoke(prompt)
+
+        text = _extract_text(response.content)
+
+        logger.info(
+            "Gemini response received | response_length=%s",
+            len(text)
+        )
+
+        result = _parse_json_response(text)
+
+    except Exception as error:
+
+        logger.exception(
+            "Gemini analysis failed | error_type=%s",
+            type(error).__name__
+        )
+
+        # Log a portion of the model output if JSON parsing failed
+        if "text" in locals():
+            logger.error(
+                "Gemini raw response: %s",
+                text[:1000]
+            )
+
+        # Return a factual answer from SQL data
+        return _default_response(
+            _fallback_from_dataframe(df)
+        )
+
+    # ==================================================
+    # 8. NORMALIZE ANSWER
+    # ==================================================
+
     answer = result.get("answer")
 
     if not isinstance(answer, str) or not answer.strip():
-        answer = f"The query returned {len(df)} rows."
+        answer = _fallback_from_dataframe(df)
 
     insights = result.get("insights", [])
 
@@ -154,9 +276,14 @@ Return exactly these keys:
         insights = []
 
     insights = [
-        item for item in insights
+        item.strip()
+        for item in insights
         if isinstance(item, str) and item.strip()
     ][:4]
+
+    # ==================================================
+    # 9. VALIDATE VISUALIZATION
+    # ==================================================
 
     visualization_required = (
         result.get("visualization_required") is True
@@ -167,8 +294,12 @@ Return exactly these keys:
     y_column = result.get("y_column")
     chart_title = result.get("chart_title")
 
-    # Step 5: Validate chart instructions against the real DataFrame
-    allowed_charts = {"bar", "line", "pie", "scatter"}
+    allowed_charts = {
+        "bar",
+        "line",
+        "pie",
+        "scatter"
+    }
 
     valid_chart = (
         visualization_required
@@ -180,15 +311,22 @@ Return exactly these keys:
     )
 
     if valid_chart:
-        # Charts should use numeric values for their y-axis.
-        valid_chart = pd.api.types.is_numeric_dtype(df[y_column])
+
+        valid_chart = pd.api.types.is_numeric_dtype(
+            df[y_column]
+        )
 
     if not valid_chart:
+
         visualization_required = False
         chart_type = None
         x_column = None
         y_column = None
         chart_title = None
+
+    # ==================================================
+    # 10. RETURN FINAL RESPONSE
+    # ==================================================
 
     return {
         "answer": answer,
