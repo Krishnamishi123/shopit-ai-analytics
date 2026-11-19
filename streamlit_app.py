@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 from api_client import ask_shopit_api
-
+import os
 st.set_page_config(
     page_title="Shopit AI",
     page_icon="🛒",
@@ -88,13 +88,23 @@ if page == "Monitoring Dashboard":
     # FETCH MONITORING DATA FROM FASTAPI
     # --------------------------------------------------------
 
-    API_URL = "http://127.0.0.1:8000"
+    
+# --------------------------------------------------------
+# FETCH MONITORING DATA FROM RENDER FASTAPI
+# -------------------------------------------------------
+
+
+
+    API_URL = os.getenv(
+        "API_BASE_URL",
+        "https://shopit-ai-analytics.onrender.com"
+    ).rstrip("/")
 
     try:
 
         response = requests.get(
             f"{API_URL}/monitoring/summary",
-            timeout=10
+            timeout=60
         )
 
         response.raise_for_status()
@@ -104,13 +114,13 @@ if page == "Monitoring Dashboard":
     except requests.exceptions.RequestException as error:
 
         st.error(
-            "Unable to connect to the monitoring API. "
-            "Make sure FastAPI is running."
+            "Unable to connect to the Shopit monitoring API."
         )
 
         st.code(str(error))
 
         st.stop()
+
 
     # --------------------------------------------------------
     # GET METRICS
