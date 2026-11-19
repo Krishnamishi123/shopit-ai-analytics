@@ -226,6 +226,7 @@ def run_shopit_query(question: str) -> dict:
 # 6. MONITORING SUMMARY
 # ==================================================
 
+
 def get_monitoring_summary():
 
     initialize_metrics_file()
@@ -236,6 +237,8 @@ def get_monitoring_summary():
 
     total_duration = 0
     categories = {}
+    errors = {}
+    recent_requests = []
 
     with CSV_LOCK:
 
@@ -252,21 +255,43 @@ def get_monitoring_summary():
 
                 total_requests += 1
 
-                if row["status"] == "SUCCESS":
-                    successful_requests += 1
+                status = row.get("status", "UNKNOWN")
 
+                if status == "SUCCESS":
+                    successful_requests += 1
                 else:
                     failed_requests += 1
 
-                total_duration += float(
-                    row["duration_seconds"]
+                duration = float(
+                    row.get("duration_seconds") or 0
                 )
 
-                category = row["category"]
+                total_duration += duration
+
+                category = row.get(
+                    "category", "UNKNOWN"
+                )
 
                 categories[category] = (
                     categories.get(category, 0) + 1
                 )
+
+                error_type = row.get("error_type", "")
+
+                if error_type:
+
+                    errors[error_type] = (
+                        errors.get(error_type, 0) + 1
+                    )
+
+                recent_requests.append({
+                    "request_id": row.get("request_id"),
+                    "timestamp": row.get("timestamp"),
+                    "category": category,
+                    "status": status,
+                    "duration_seconds": duration,
+                    "error_type": error_type
+                })
 
     average_response_time = (
         total_duration / total_requests
@@ -277,6 +302,12 @@ def get_monitoring_summary():
         successful_requests / total_requests * 100
         if total_requests else 0
     )
+
+    recent_requests = sorted(
+        recent_requests,
+        key=lambda x: x["timestamp"] or "",
+        reverse=True
+    )[:10]
 
     return {
         "total_requests": total_requests,
@@ -289,4 +320,6 @@ def get_monitoring_summary():
             average_response_time, 4
         ),
         "requests_by_category": categories,
+        "errors_by_type": errors,
+        "recent_requests": recent_requests
     }
