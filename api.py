@@ -1,6 +1,6 @@
 
 # api.py
-
+import time
 import json
 import logging
 import math
@@ -166,41 +166,56 @@ def health():
 # SHARED CHAT PROCESSOR
 # --------------------------------------------------
 
+
 def process_chat(question: str) -> ChatResponse:
+
     question = question.strip()
 
     if not question:
         raise HTTPException(
             status_code=422,
-            detail="Question cannot be empty or contain only spaces.",
+            detail="Question cannot be empty."
         )
 
+    start_time = time.perf_counter()
+
+    logger.info(
+        "SHOPIT REQUEST STARTED | question=%s",
+        question[:200]
+    )
+
     try:
-        # This calls your existing monitoring wrapper,
-        # which invokes the existing LangGraph workflow.
+
+        logger.info("Starting LangGraph execution")
+
         result = run_shopit_query(question)
 
+        graph_time = time.perf_counter() - start_time
+
+        logger.info(
+            "LangGraph completed in %.2f seconds",
+            graph_time
+        )
+
         if not isinstance(result, dict):
-            logger.error(
-                "Unexpected graph result type: %s",
-                type(result).__name__,
-            )
-            raise HTTPException(
-                status_code=500,
-                detail="The assistant returned an unexpected response.",
+            raise ValueError(
+                "Unexpected graph result type: "
+                f"{type(result).__name__}"
             )
 
-        # Build a stable API response even if optional graph
-        # fields are absent.
-        return ChatResponse(
+        api_start = time.perf_counter()
+
+        response = ChatResponse(
             question=question,
             category=result.get("category"),
             answer=safe_string(
                 result.get("answer"),
-                "The assistant did not return an answer.",
+                "The assistant did not return an answer."
             ),
             sql=result.get("sql"),
-            insights=normalize_insights(result.get("insights")),
+            insights=normalize_insights(
+                result.get("insights")
+            ),
             visualization_required=bool(
                 result.get("visualization_required", False)
             ),
@@ -208,22 +223,31 @@ def process_chat(question: str) -> ChatResponse:
             x_column=result.get("x_column"),
             y_column=result.get("y_column"),
             chart_title=result.get("chart_title"),
-            data=dataframe_to_records(result.get("data")),
+            data=dataframe_to_records(result.get("data"))
         )
+
+        total_time = time.perf_counter() - start_time
+
+        logger.info(
+            "SHOPIT REQUEST COMPLETED | "
+            "graph_time=%.2fs | total_time=%.2fs",
+            graph_time,
+            total_time
+        )
+
+        return response
 
     except HTTPException:
         raise
 
     except Exception:
-        logger.exception("Shopit API query failed")
+
+        logger.exception("SHOPIT REQUEST FAILED")
+
         raise HTTPException(
             status_code=500,
-            detail=(
-                "Shopit could not process this question. "
-                "Check the application logs and try again."
-            ),
+            detail="Shopit could not process your question."
         )
-
 
 # --------------------------------------------------
 # ENDPOINT 3: CHAT
