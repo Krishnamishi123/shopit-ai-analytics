@@ -1,220 +1,126 @@
-import os
 
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-
-
-# =========================================================
-# 1. LOAD ENVIRONMENT
-# =========================================================
-
-load_dotenv()
-
-if not os.getenv("GOOGLE_API_KEY"):
-    raise ValueError(
-        "GOOGLE_API_KEY not found in .env file"
-    )
-
-
-# =========================================================
-# 2. GEMINI MODEL
-# =========================================================
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.5-flash",
-    temperature=0
-)
-
-
-# =========================================================
-# 3. CLASSIFIER PROMPT
-# =========================================================
-
-classifier_prompt = ChatPromptTemplate.from_template(
-    """
-You are the query classification agent for Shopit's
-AI Analytics system.
-
-Your job is ONLY to classify the user's query.
-
-Choose exactly ONE category:
-
-DATABASE
-RAG
-UNKNOWN
-
-
-=========================
-DATABASE
-=========================
-
-Use DATABASE when the user is asking about:
-
-- sales
-- revenue
-- orders
-- customers
-- products
-- product performance
-- customer behavior
-- quantities
-- prices
-- averages
-- totals
-- rankings
-- comparisons
-- trends
-- statistics
-- numerical/business analysis
-
-These questions require information from the Shopit
-database.
-
-
-Examples:
-
-"Which product sold the most?"
-
-"What is the total revenue?"
-
-"Who are the top 10 customers?"
-
-"What is the average order value?"
-
-"Which category generated the highest sales?"
-
-"How many orders did customer 101 place?"
-
-
-=========================
-RAG
-=========================
-
-Use RAG when the user is asking about Shopit's
-company information, policies, rules, procedures,
-or other information contained in Shopit's documents.
-
-Examples:
-
-"What is Shopit's return policy?"
-
-"How many days do I have to return a product?"
-
-"How can I cancel an order?"
-
-"What is Shopit's shipping policy?"
-
-"What is Shopit's seller policy?"
-
-"Who is the head of the sales department?"
-
-"Who owns Shopit?"
-
-
-=========================
-UNKNOWN
-=========================
-
-Use UNKNOWN when:
-
-- the question is unrelated to Shopit
-- the required information does not exist in the
-  Shopit database or documents
-- the question is general knowledge
-- the question requires current external information
-- the question is meaningless or impossible to answer
-
-
-Examples:
-
-"What is the weather today?"
-
-"Who is the Prime Minister of India?"
-
-"Explain quantum physics."
-
-"What happened in yesterday's cricket match?"
-
-
-=========================
-IMPORTANT RULES
-=========================
-
-Return ONLY ONE of:
-
-DATABASE
-RAG
-UNKNOWN
-
-Do not provide an explanation.
-
-User Query:
-
-{question}
-"""
-)
-
-
-# =========================================================
-# 4. CLASSIFIER FUNCTION
-# =========================================================
-
-def classify_query(question):
-
-    messages = classifier_prompt.format_messages(
-        question=question
-    )
-
-    response = llm.invoke(messages)
-
-    # Gemini may return either a string or content blocks
-    if isinstance(response.content, list):
-
-        result = "".join(
-            block.get("text", "")
-            for block in response.content
-            if block.get("type") == "text"
-        )
-
-    else:
-
-        result = response.content
-
-    result = result.strip().upper()
-
-    # Safety check
-    if result not in [
-        "DATABASE",
-        "RAG",
-        "UNKNOWN"
-    ]:
-
+import re
+import logging
+
+logger = logging.getLogger("shopit.classifier")
+
+
+# ==================================================
+# 1. KEYWORDS FOR CLASSIFICATION
+# ==================================================
+
+DATABASE_PATTERNS = [
+    r"\bsales?\b",
+    r"\brevenue\b",
+    r"\border(s)?\b",
+    r"\bcustomer(s)?\b",
+    r"\bproducts?\b",
+    r"\btop\s+\d+\b",
+    r"\bhighest\b",
+    r"\blowest\b",
+    r"\bbest[- ]selling\b",
+    r"\baverage\b",
+    r"\btotal\b",
+    r"\bprofit\b",
+    r"\bquantity\b",
+    r"\bhow many\b",
+    r"\bpercentage\b",
+    r"\bgrowth\b",
+    r"\btrend(s)?\b",
+    r"\bperformance\b",
+    r"\bspending\b",
+    r"\bpurchased\b",
+    r"\bpurchase(s)?\b",
+    r"\bmonthly\b",
+    r"\bweekly\b",
+    r"\bdaily\b",
+    r"\bcategory\b",
+    r"\bcompare\b",
+    r"\branking\b",
+    r"\bretention\b",
+    r"\bchurn\b",
+    r"\bcohort\b",
+    r"\brfm\b",
+    r"\bbasket\b",
+    r"\bforecast\b",
+    r"\bdiscount\b",
+    r"\brefund rate\b",
+    r"\breturn rate\b"
+]
+
+
+RAG_PATTERNS = [
+    r"\breturn policy\b",
+    r"\brefund policy\b",
+    r"\bshipping policy\b",
+    r"\bcancellation policy\b",
+    r"\bprivacy policy\b",
+    r"\bseller policy\b",
+    r"\bterms and conditions\b",
+    r"\bhow can i cancel\b",
+    r"\bhow do i cancel\b",
+    r"\bhow many days.*return\b",
+    r"\bdelivery rules\b",
+    r"\bcompany policy\b",
+    r"\bcompany information\b",
+    r"\bwho owns shopit\b",
+    r"\bwho founded shopit\b",
+    r"\bceo of shopit\b",
+    r"\bhead of .* department\b"
+]
+
+
+# ==================================================
+# 2. CLASSIFIER FUNCTION
+# ==================================================
+
+def classify_query(question: str) -> str:
+
+    if not isinstance(question, str) or not question.strip():
         return "UNKNOWN"
 
-    return result
+    question = question.lower().strip()
+
+    # Check policy and company information first
+    for pattern in RAG_PATTERNS:
+
+        if re.search(pattern, question):
+            logger.info("Query classified as RAG")
+            return "RAG"
+
+    # Check database-related questions
+    for pattern in DATABASE_PATTERNS:
+
+        if re.search(pattern, question):
+            logger.info("Query classified as DATABASE")
+            return "DATABASE"
+
+    # Anything outside supported categories
+    logger.info("Query classified as UNKNOWN")
+
+    return "UNKNOWN"
 
 
-# =========================================================
-# 5. TEST CLASSIFIER
-# =========================================================
+# ==================================================
+# 3. TEST CLASSIFIER
+# ==================================================
 
 if __name__ == "__main__":
 
-    while True:
+    test_questions = [
+        "How many products are there?",
+        "Show top 10 products by revenue",
+        "Which customers spend the most?",
+        "What is Shopit's return policy?",
+        "How can I cancel my order?",
+        "What is today's weather?",
+        "Explain quantum physics",
+        "Calculate monthly sales growth",
+    ]
 
-        question = input(
-            "\nAsk Shopit: "
-        )
+    for question in test_questions:
 
-        if question.lower() == "exit":
-            break
+        category = classify_query(question)
 
-        category = classify_query(
-            question
-        )
-
-        print(
-            "\nCLASSIFICATION:",
-            category
-        )
+        print(f"\nQuestion: {question}")
+        print(f"Category: {category}")
